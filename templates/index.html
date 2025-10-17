@@ -71,13 +71,13 @@
                                     x-model="format"
                                     class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none text-white"
                                 >
-                                    <option value="mp4" class="bg-gray-800">MP4 Video</option>
-                                    <option value="mp3" class="bg-gray-800">MP3 Audio</option>
+                                    <option value="mp4" class="bg-gray-800">🎥 MP4 Video</option>
+                                    <option value="mp3" class="bg-gray-800">🎵 MP3 Audio</option>
                                 </select>
                             </div>
                             
                             <div x-show="format === 'mp4'">
-                                <label class="block text-sm font-medium mb-2">Quality</label>
+                                <label class="block text-sm font-medium mb-2">Video Quality</label>
                                 <select 
                                     x-model="quality"
                                     class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none text-white"
@@ -86,6 +86,22 @@
                                     <option value="1080p" class="bg-gray-800">1080p</option>
                                     <option value="720p" class="bg-gray-800">720p</option>
                                 </select>
+                            </div>
+                            
+                            <div x-show="format === 'mp3'">
+                                <label class="block text-sm font-medium mb-2">Audio Quality</label>
+                                <select 
+                                    x-model="quality"
+                                    class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none text-white"
+                                >
+                                    <option value="best" class="bg-gray-800">320 kbps (Best)</option>
+                                    <option value="medium" class="bg-gray-800">192 kbps (Standard)</option>
+                                    <option value="low" class="bg-gray-800">128 kbps (Compact)</option>
+                                </select>
+                                <div class="mt-2 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg text-sm">
+                                    <i class="fas fa-info-circle text-blue-400 mr-2"></i>
+                                    <strong>MP3 requires FFmpeg:</strong> Make sure FFmpeg is installed for audio conversion.
+                                </div>
                             </div>
                         </div>
 
@@ -156,6 +172,12 @@
                                     <i class="fas fa-eye mr-1"></i>
                                     <span x-text="formatNumber(videoInfo?.view_count)"></span> views
                                 </p>
+                                
+                                <!-- Format Recommendation -->
+                                <div class="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg text-sm">
+                                    <i class="fas fa-lightbulb text-yellow-400 mr-2"></i>
+                                    <strong>Tip:</strong> For reliable downloads, try "Best Available" quality or MP3 format if you only need audio.
+                                </div>
                             </div>
                         </div>
 
@@ -177,21 +199,73 @@
                                 
                                 <!-- Preview Videos -->
                                 <div x-show="videoInfo?.videos && videoInfo.videos.length > 0" class="space-y-2">
-                                    <h5 class="text-sm font-medium text-gray-400">Preview (first 5 videos):</h5>
-                                    <template x-for="video in videoInfo.videos" :key="video.title">
-                                        <div class="bg-white/5 rounded p-2 text-xs">
-                                            <div class="font-medium" x-text="video.title"></div>
-                                            <div class="text-gray-400" x-text="formatDuration(video.duration)"></div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h5 class="text-sm font-medium text-gray-400">
+                                            <span x-text="downloadType === 'video' ? 'Select videos to download:' : 'Preview (first 5 videos):'"></span>
+                                        </h5>
+                                        <div x-show="downloadType === 'video'" class="flex space-x-2 text-xs">
+                                            <button 
+                                                @click="selectAllVideos()"
+                                                class="text-blue-400 hover:text-blue-300 transition"
+                                            >
+                                                Select All
+                                            </button>
+                                            <span class="text-gray-500">|</span>
+                                            <button 
+                                                @click="clearSelectedVideos()"
+                                                class="text-red-400 hover:text-red-300 transition"
+                                            >
+                                                Clear All
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <template x-for="(video, index) in videoInfo.videos" :key="video.title + index">
+                                        <div class="bg-white/5 hover:bg-white/10 rounded p-3 text-xs transition duration-200"
+                                             :class="downloadType === 'video' && selectedVideos.includes(index) ? 'ring-2 ring-blue-400 bg-blue-500/20' : ''">
+                                            
+                                            <!-- Individual Video Selection -->
+                                            <div x-show="downloadType === 'video'" class="flex items-start mb-2">
+                                                <input 
+                                                    type="checkbox" 
+                                                    :checked="selectedVideos.includes(index)"
+                                                    @change="toggleVideoSelection(index)"
+                                                    class="mr-3 mt-1 text-blue-400 bg-transparent border-gray-400 rounded focus:ring-blue-400 focus:ring-2"
+                                                >
+                                                <div class="flex-1">
+                                                    <div class="font-medium text-white mb-1" x-text="video.title"></div>
+                                                    <div class="text-gray-400 flex items-center">
+                                                        <i class="fas fa-clock mr-1"></i>
+                                                        <span x-text="formatDuration(video.duration)"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Preview Mode (non-selectable) -->
+                                            <div x-show="downloadType !== 'video'">
+                                                <div class="font-medium text-white mb-1" x-text="video.title"></div>
+                                                <div class="text-gray-400" x-text="formatDuration(video.duration)"></div>
+                                            </div>
                                         </div>
                                     </template>
+                                    
+                                    <!-- Selection Summary -->
+                                    <div x-show="downloadType === 'video' && selectedVideos.length > 0" 
+                                         class="mt-3 p-2 bg-blue-500/20 border border-blue-500/50 rounded text-xs">
+                                        <i class="fas fa-check-circle text-blue-400 mr-2"></i>
+                                        <span x-text="selectedVideos.length + ' video(s) selected'"></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <button 
                             @click="downloadVideo()"
-                            :disabled="downloading"
-                            class="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 transform hover:scale-105 disabled:scale-100 flex items-center justify-center"
+                            :disabled="downloading || (videoInfo?.type === 'playlist' && downloadType === 'video' && selectedVideos.length === 0)"
+                            class="w-full text-white font-bold py-3 px-4 rounded-lg transition duration-300 transform hover:scale-105 disabled:scale-100 flex items-center justify-center"
+                            :class="(videoInfo?.type === 'playlist' && downloadType === 'video' && selectedVideos.length === 0) ? 
+                                'bg-gray-600 cursor-not-allowed' : 
+                                'bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:from-gray-600 disabled:to-gray-700'"
                         >
                             <i class="fas fa-download mr-2" x-show="!downloading"></i>
                             <i class="fas fa-spinner fa-spin mr-2" x-show="downloading"></i>
@@ -247,8 +321,11 @@
                                 <h4 class="font-semibold mb-1" x-text="item.title"></h4>
                                 <div class="flex items-center space-x-4 text-sm text-gray-400">
                                     <span class="flex items-center">
-                                        <i :class="item.type === 'playlist' ? 'fas fa-list-ul' : 'fas fa-file-alt'" class="mr-1"></i>
+                                        <i :class="item.type === 'playlist' ? 'fas fa-list-ul' : (item.format === 'mp3' ? 'fas fa-music' : 'fas fa-video')" class="mr-1"></i>
                                         <span x-text="item.format.toUpperCase()"></span>
+                                        <span x-show="item.format === 'mp3' && item.quality" class="ml-1 text-xs bg-purple-500/20 px-2 py-1 rounded">
+                                            <span x-text="getAudioQualityLabel(item.quality)"></span>
+                                        </span>
                                     </span>
                                     <span class="flex items-center">
                                         <i class="fas fa-clock mr-1"></i>
@@ -258,9 +335,9 @@
                                         <i class="fas fa-stopwatch mr-1"></i>
                                         <span x-text="formatDuration(item.duration)"></span>
                                     </span>
-                                    <span class="flex items-center" x-show="item.type === 'playlist' && item.video_count">
-                                        <i class="fas fa-play-circle mr-1"></i>
-                                        <span x-text="item.video_count + ' videos'"></span>
+                                    <span class="flex items-center" x-show="(item.type === 'playlist' || item.type === 'selected_videos') && item.video_count">
+                                        <i :class="item.type === 'selected_videos' ? 'fas fa-check-square' : 'fas fa-play-circle'" class="mr-1"></i>
+                                        <span x-text="item.video_count + (item.type === 'selected_videos' ? ' selected' : ' videos')"></span>
                                     </span>
                                 </div>
                             </div>
@@ -275,8 +352,8 @@
                                     Download
                                 </a>
                                 <button 
-                                    x-show="item.type === 'playlist'"
-                                    @click="viewPlaylistFiles(item.title.replace('Playlist: ', ''))"
+                                    x-show="item.type === 'playlist' || item.type === 'selected_videos'"
+                                    @click="viewPlaylistFiles(item.title.replace('Playlist: ', '').replace('Selected from: ', ''))"
                                     class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition duration-200 flex items-center"
                                 >
                                     <i class="fas fa-folder-open mr-2"></i>
@@ -291,7 +368,7 @@
 
         <!-- Footer -->
         <footer class="text-center mt-12 text-gray-400">
-            <p>&copy; 2024 YouTube Downloader. Built with Flask & Tailwind CSS.</p>
+            <p>&copy; 2025 YouTube Downloader. Built with Flask & Tailwind CSS.</p>
         </footer>
     </div>
 
@@ -308,9 +385,11 @@
                 history: [],
                 successMessage: '',
                 errorMessage: '',
+                selectedVideos: [], // Track selected individual videos
 
                 init() {
                     this.loadHistory();
+                    this.checkSystemStatus();
                 },
 
                 async getVideoInfo() {
@@ -333,6 +412,8 @@
                         
                         if (data.status === 'success') {
                             this.videoInfo = data;
+                            // Reset selected videos when getting new info
+                            this.selectedVideos = [];
                         } else {
                             this.errorMessage = data.error || 'Failed to get video info';
                         }
@@ -346,22 +427,35 @@
                 async downloadVideo() {
                     if (!this.url) return;
                     
+                    // Validate individual video selection
+                    if (this.videoInfo?.type === 'playlist' && this.downloadType === 'video' && this.selectedVideos.length === 0) {
+                        this.errorMessage = 'Please select at least one video to download.';
+                        return;
+                    }
+                    
                     this.downloading = true;
                     this.errorMessage = '';
                     this.successMessage = '';
 
                     try {
+                        const requestBody = {
+                            url: this.url,
+                            format: this.format,
+                            quality: this.quality,
+                            download_type: this.videoInfo?.type === 'playlist' ? this.downloadType : 'video'
+                        };
+                        
+                        // Add selected video indices for individual downloads
+                        if (this.downloadType === 'video' && this.selectedVideos.length > 0) {
+                            requestBody.selected_videos = this.selectedVideos;
+                        }
+
                         const response = await fetch('/download', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                             },
-                            body: JSON.stringify({
-                                url: this.url,
-                                format: this.format,
-                                quality: this.quality,
-                                download_type: this.videoInfo?.type === 'playlist' ? this.downloadType : 'video'
-                            })
+                            body: JSON.stringify(requestBody)
                         });
 
                         const data = await response.json();
@@ -369,21 +463,35 @@
                         if (data.status === 'success') {
                             if (data.type === 'playlist') {
                                 this.successMessage = `✅ Playlist "${data.title}" with ${data.video_count} videos downloaded successfully!`;
+                            } else if (data.type === 'selected_videos') {
+                                let message = `✅ Downloaded ${data.video_count} selected videos from playlist!`;
+                                if (data.failed_count > 0) {
+                                    message += ` (${data.failed_count} failed)`;
+                                }
+                                this.successMessage = message;
                             } else {
                                 this.successMessage = `✅ "${data.title}" downloaded successfully!`;
                             }
                             this.loadHistory();
                             
-                            // Clear form
+                            // Clear form and reset selections
                             this.url = '';
                             this.videoInfo = null;
+                            this.selectedVideos = [];
                             
                             // Auto-hide success message
                             setTimeout(() => {
                                 this.successMessage = '';
                             }, 8000);
                         } else {
-                            this.errorMessage = data.error || 'Download failed';
+                            let errorMsg = data.error || 'Download failed';
+                            
+                            // Add helpful suggestions for common errors
+                            if (data.suggestion) {
+                                errorMsg += `\n\n💡 Suggestion: ${data.suggestion}`;
+                            }
+                            
+                            this.errorMessage = errorMsg;
                         }
                     } catch (error) {
                         this.errorMessage = 'Network error. Please try again.';
@@ -429,10 +537,21 @@
 
                 getDownloadButtonText() {
                     if (this.downloading) {
-                        return this.videoInfo?.type === 'playlist' ? 'Downloading Playlist...' : 'Downloading...';
+                        if (this.videoInfo?.type === 'playlist') {
+                            return this.downloadType === 'playlist' ? 'Downloading Playlist...' : 'Downloading Selected...';
+                        }
+                        return 'Downloading...';
                     }
                     if (this.videoInfo?.type === 'playlist') {
-                        return this.downloadType === 'playlist' ? 'Download Entire Playlist' : 'Download Selected Videos';
+                        if (this.downloadType === 'playlist') {
+                            return 'Download Entire Playlist';
+                        } else {
+                            const count = this.selectedVideos.length;
+                            if (count === 0) {
+                                return 'Select Videos to Download';
+                            }
+                            return `Download ${count} Selected Video${count > 1 ? 's' : ''}`;
+                        }
                     }
                     return 'Download Now';
                 },
@@ -454,6 +573,47 @@
                     } catch (error) {
                         alert('Error loading playlist files.');
                     }
+                },
+
+                getAudioQualityLabel(quality) {
+                    switch(quality) {
+                        case 'best': return '320kbps';
+                        case 'medium': return '192kbps';
+                        case 'low': return '128kbps';
+                        default: return quality;
+                    }
+                },
+
+                async checkSystemStatus() {
+                    try {
+                        const response = await fetch('/status');
+                        const data = await response.json();
+                        
+                        if (!data.ffmpeg_available) {
+                            this.errorMessage = '⚠️ FFmpeg is not installed. MP3 downloads will not work. Please install FFmpeg first.';
+                        }
+                    } catch (error) {
+                        console.warn('Could not check system status');
+                    }
+                },
+
+                toggleVideoSelection(index) {
+                    const selectedIndex = this.selectedVideos.indexOf(index);
+                    if (selectedIndex > -1) {
+                        this.selectedVideos.splice(selectedIndex, 1);
+                    } else {
+                        this.selectedVideos.push(index);
+                    }
+                },
+
+                selectAllVideos() {
+                    if (this.videoInfo?.videos) {
+                        this.selectedVideos = [...Array(this.videoInfo.videos.length).keys()];
+                    }
+                },
+
+                clearSelectedVideos() {
+                    this.selectedVideos = [];
                 }
             }
         }
