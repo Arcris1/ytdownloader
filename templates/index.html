@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Downloader - Modern & Fast</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#1E40AF',
+                        accent: '#F59E0B',
+                        dark: '#1F2937',
+                        'dark-light': '#374151',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen text-white">
+    <div x-data="youtubeDownloader()" class="container mx-auto px-4 py-8 max-w-6xl">
+        
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <div class="mb-6">
+                <i class="fas fa-download text-6xl text-blue-400 mb-4"></i>
+                <h1 class="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
+                    YouTube Downloader
+                </h1>
+                <p class="text-xl text-gray-300 max-w-2xl mx-auto">
+                    Download your favorite YouTube videos in high quality with our modern, fast, and secure downloader.
+                </p>
+            </div>
+        </header>
+
+        <!-- Main Download Section -->
+        <div class="grid lg:grid-cols-3 gap-8 mb-12">
+            <!-- Download Form -->
+            <div class="lg:col-span-2">
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-link text-blue-400 mr-3"></i>
+                        Enter Video URL
+                    </h2>
+                    
+                    <form @submit.prevent="getVideoInfo()" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">YouTube URL</label>
+                            <div class="relative">
+                                <input 
+                                    type="url" 
+                                    x-model="url"
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none text-white placeholder-gray-400"
+                                    required
+                                />
+                                <i class="fas fa-link absolute right-3 top-3 text-gray-400"></i>
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Format</label>
+                                <select 
+                                    x-model="format"
+                                    class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none text-white"
+                                >
+                                    <option value="mp4" class="bg-gray-800">MP4 Video</option>
+                                    <option value="mp3" class="bg-gray-800">MP3 Audio</option>
+                                </select>
+                            </div>
+                            
+                            <div x-show="format === 'mp4'">
+                                <label class="block text-sm font-medium mb-2">Quality</label>
+                                <select 
+                                    x-model="quality"
+                                    class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none text-white"
+                                >
+                                    <option value="best" class="bg-gray-800">Best Available</option>
+                                    <option value="1080p" class="bg-gray-800">1080p</option>
+                                    <option value="720p" class="bg-gray-800">720p</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Download Type Selection -->
+                        <div x-show="videoInfo && videoInfo.type === 'playlist'">
+                            <label class="block text-sm font-medium mb-2">Download Type</label>
+                            <div class="flex space-x-4">
+                                <label class="flex items-center">
+                                    <input 
+                                        type="radio" 
+                                        x-model="downloadType" 
+                                        value="playlist" 
+                                        class="mr-2 text-blue-400 focus:ring-blue-400"
+                                    >
+                                    <span>Entire Playlist</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input 
+                                        type="radio" 
+                                        x-model="downloadType" 
+                                        value="video" 
+                                        class="mr-2 text-blue-400 focus:ring-blue-400"
+                                    >
+                                    <span>Individual Videos</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button 
+                            type="submit"
+                            :disabled="loading"
+                            class="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105 disabled:scale-100 flex items-center justify-center"
+                        >
+                            <i class="fas fa-search mr-2" x-show="!loading"></i>
+                            <i class="fas fa-spinner fa-spin mr-2" x-show="loading"></i>
+                            <span x-text="loading ? 'Analyzing...' : (url.includes('playlist') || url.includes('list=') ? 'Analyze Playlist' : 'Get Video Info')"></span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Video Preview -->
+            <div class="lg:col-span-1" x-show="videoInfo">
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-info-circle text-blue-400 mr-2"></i>
+                        Video Info
+                    </h3>
+                    
+                    <div x-show="videoInfo" class="space-y-4">
+                        <!-- Single Video Info -->
+                        <div x-show="videoInfo?.type === 'video'">
+                            <div x-show="videoInfo?.thumbnail" class="aspect-video rounded-lg overflow-hidden mb-4">
+                                <img :src="videoInfo?.thumbnail" :alt="videoInfo?.title" class="w-full h-full object-cover">
+                            </div>
+                            
+                            <div>
+                                <h4 class="font-semibold text-lg mb-2" x-text="videoInfo?.title"></h4>
+                                <p class="text-sm text-gray-300 mb-2">
+                                    <i class="fas fa-user mr-1"></i>
+                                    <span x-text="videoInfo?.uploader"></span>
+                                </p>
+                                <p class="text-sm text-gray-300 mb-2">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    <span x-text="formatDuration(videoInfo?.duration)"></span>
+                                </p>
+                                <p class="text-sm text-gray-300 mb-4">
+                                    <i class="fas fa-eye mr-1"></i>
+                                    <span x-text="formatNumber(videoInfo?.view_count)"></span> views
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Playlist Info -->
+                        <div x-show="videoInfo?.type === 'playlist'">
+                            <div class="mb-4">
+                                <h4 class="font-semibold text-lg mb-2 flex items-center">
+                                    <i class="fas fa-list-ul text-purple-400 mr-2"></i>
+                                    <span x-text="videoInfo?.title"></span>
+                                </h4>
+                                <p class="text-sm text-gray-300 mb-2">
+                                    <i class="fas fa-user mr-1"></i>
+                                    <span x-text="videoInfo?.uploader"></span>
+                                </p>
+                                <p class="text-sm text-gray-300 mb-4">
+                                    <i class="fas fa-play-circle mr-1"></i>
+                                    <span x-text="videoInfo?.video_count"></span> videos
+                                </p>
+                                
+                                <!-- Preview Videos -->
+                                <div x-show="videoInfo?.videos && videoInfo.videos.length > 0" class="space-y-2">
+                                    <h5 class="text-sm font-medium text-gray-400">Preview (first 5 videos):</h5>
+                                    <template x-for="video in videoInfo.videos" :key="video.title">
+                                        <div class="bg-white/5 rounded p-2 text-xs">
+                                            <div class="font-medium" x-text="video.title"></div>
+                                            <div class="text-gray-400" x-text="formatDuration(video.duration)"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            @click="downloadVideo()"
+                            :disabled="downloading"
+                            class="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 transform hover:scale-105 disabled:scale-100 flex items-center justify-center"
+                        >
+                            <i class="fas fa-download mr-2" x-show="!downloading"></i>
+                            <i class="fas fa-spinner fa-spin mr-2" x-show="downloading"></i>
+                            <span x-text="getDownloadButtonText()"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Message -->
+        <div x-show="successMessage" 
+             x-transition
+             class="mb-8 bg-green-500/20 border border-green-500/50 rounded-lg p-4 flex items-center">
+            <i class="fas fa-check-circle text-green-400 mr-3"></i>
+            <span x-text="successMessage"></span>
+        </div>
+
+        <!-- Error Message -->
+        <div x-show="errorMessage" 
+             x-transition
+             class="mb-8 bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-center">
+            <i class="fas fa-exclamation-circle text-red-400 mr-3"></i>
+            <span x-text="errorMessage"></span>
+        </div>
+
+        <!-- Download History -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold flex items-center">
+                    <i class="fas fa-history text-purple-400 mr-3"></i>
+                    Download History
+                </h2>
+                <button 
+                    @click="loadHistory()"
+                    class="text-blue-400 hover:text-blue-300 transition duration-200"
+                >
+                    <i class="fas fa-refresh mr-1"></i>
+                    Refresh
+                </button>
+            </div>
+
+            <div x-show="history.length === 0" class="text-center py-8 text-gray-400">
+                <i class="fas fa-inbox text-4xl mb-4"></i>
+                <p>No downloads yet. Start by downloading your first video!</p>
+            </div>
+
+            <div x-show="history.length > 0" class="space-y-4">
+                <template x-for="item in history" :key="item.timestamp">
+                    <div class="bg-white/5 rounded-lg p-4 border border-white/10 hover:bg-white/10 transition duration-200">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <h4 class="font-semibold mb-1" x-text="item.title"></h4>
+                                <div class="flex items-center space-x-4 text-sm text-gray-400">
+                                    <span class="flex items-center">
+                                        <i :class="item.type === 'playlist' ? 'fas fa-list-ul' : 'fas fa-file-alt'" class="mr-1"></i>
+                                        <span x-text="item.format.toUpperCase()"></span>
+                                    </span>
+                                    <span class="flex items-center">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        <span x-text="formatDate(item.timestamp)"></span>
+                                    </span>
+                                    <span class="flex items-center" x-show="item.duration && item.type !== 'playlist'">
+                                        <i class="fas fa-stopwatch mr-1"></i>
+                                        <span x-text="formatDuration(item.duration)"></span>
+                                    </span>
+                                    <span class="flex items-center" x-show="item.type === 'playlist' && item.video_count">
+                                        <i class="fas fa-play-circle mr-1"></i>
+                                        <span x-text="item.video_count + ' videos'"></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <a 
+                                    x-show="item.type !== 'playlist'"
+                                    :href="'/downloads/' + item.filename"
+                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200 flex items-center"
+                                    download
+                                >
+                                    <i class="fas fa-download mr-2"></i>
+                                    Download
+                                </a>
+                                <button 
+                                    x-show="item.type === 'playlist'"
+                                    @click="viewPlaylistFiles(item.title.replace('Playlist: ', ''))"
+                                    class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition duration-200 flex items-center"
+                                >
+                                    <i class="fas fa-folder-open mr-2"></i>
+                                    View Files
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12 text-gray-400">
+            <p>&copy; 2024 YouTube Downloader. Built with Flask & Tailwind CSS.</p>
+        </footer>
+    </div>
+
+    <script>
+        function youtubeDownloader() {
+            return {
+                url: '',
+                format: 'mp4',
+                quality: 'best',
+                downloadType: 'playlist',
+                loading: false,
+                downloading: false,
+                videoInfo: null,
+                history: [],
+                successMessage: '',
+                errorMessage: '',
+
+                init() {
+                    this.loadHistory();
+                },
+
+                async getVideoInfo() {
+                    if (!this.url) return;
+                    
+                    this.loading = true;
+                    this.errorMessage = '';
+                    this.videoInfo = null;
+
+                    try {
+                        const response = await fetch('/info', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ url: this.url })
+                        });
+
+                        const data = await response.json();
+                        
+                        if (data.status === 'success') {
+                            this.videoInfo = data;
+                        } else {
+                            this.errorMessage = data.error || 'Failed to get video info';
+                        }
+                    } catch (error) {
+                        this.errorMessage = 'Network error. Please try again.';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async downloadVideo() {
+                    if (!this.url) return;
+                    
+                    this.downloading = true;
+                    this.errorMessage = '';
+                    this.successMessage = '';
+
+                    try {
+                        const response = await fetch('/download', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                url: this.url,
+                                format: this.format,
+                                quality: this.quality,
+                                download_type: this.videoInfo?.type === 'playlist' ? this.downloadType : 'video'
+                            })
+                        });
+
+                        const data = await response.json();
+                        
+                        if (data.status === 'success') {
+                            if (data.type === 'playlist') {
+                                this.successMessage = `✅ Playlist "${data.title}" with ${data.video_count} videos downloaded successfully!`;
+                            } else {
+                                this.successMessage = `✅ "${data.title}" downloaded successfully!`;
+                            }
+                            this.loadHistory();
+                            
+                            // Clear form
+                            this.url = '';
+                            this.videoInfo = null;
+                            
+                            // Auto-hide success message
+                            setTimeout(() => {
+                                this.successMessage = '';
+                            }, 8000);
+                        } else {
+                            this.errorMessage = data.error || 'Download failed';
+                        }
+                    } catch (error) {
+                        this.errorMessage = 'Network error. Please try again.';
+                    } finally {
+                        this.downloading = false;
+                    }
+                },
+
+                async loadHistory() {
+                    try {
+                        const response = await fetch('/history');
+                        const data = await response.json();
+                        
+                        if (data.status === 'success') {
+                            this.history = data.history;
+                        }
+                    } catch (error) {
+                        console.error('Failed to load history:', error);
+                    }
+                },
+
+                formatDuration(seconds) {
+                    if (!seconds) return 'Unknown';
+                    
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    const secs = seconds % 60;
+                    
+                    if (hours > 0) {
+                        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                    }
+                    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+                },
+
+                formatNumber(num) {
+                    if (!num) return '0';
+                    return num.toLocaleString();
+                },
+
+                formatDate(timestamp) {
+                    return new Date(timestamp).toLocaleDateString();
+                },
+
+                getDownloadButtonText() {
+                    if (this.downloading) {
+                        return this.videoInfo?.type === 'playlist' ? 'Downloading Playlist...' : 'Downloading...';
+                    }
+                    if (this.videoInfo?.type === 'playlist') {
+                        return this.downloadType === 'playlist' ? 'Download Entire Playlist' : 'Download Selected Videos';
+                    }
+                    return 'Download Now';
+                },
+
+                async viewPlaylistFiles(playlistName) {
+                    try {
+                        const response = await fetch(`/downloads/playlist/${encodeURIComponent(playlistName)}`);
+                        const data = await response.json();
+                        
+                        if (data.status === 'success' && data.files.length > 0) {
+                            let message = `Playlist "${playlistName}" contains ${data.files.length} files:\n\n`;
+                            data.files.forEach(file => {
+                                message += `• ${file.name}\n`;
+                            });
+                            alert(message);
+                        } else {
+                            alert('No files found in this playlist folder.');
+                        }
+                    } catch (error) {
+                        alert('Error loading playlist files.');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
